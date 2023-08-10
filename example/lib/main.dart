@@ -2,8 +2,7 @@
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:list_detail_base/base/controllers/list_detail_controller.dart';
-import 'package:list_detail_base/base/views/list_detail_layout.dart';
+import 'package:list_detail_base/list_detail_base.dart';
 
 void main() {
   runApp(const MyApp());

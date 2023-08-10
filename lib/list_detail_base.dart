@@ -1,7 +1,4 @@
 library list_detail_base;
 
-/// A Calculator.
-class Calculator {
-  /// Returns [value] plus 1.
-  int addOne(int value) => value + 1;
-}
+export 'package:list_detail_base/src/list_detail_controller.dart';
+export 'package:list_detail_base/src/list_detail_layout.dart';

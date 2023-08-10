@@ -1,7 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
-import 'package:list_detail_base/base/controllers/list_detail_controller.dart';
+import 'list_detail_controller.dart';
 
 /// Builder for list portion of [ListDetailLayout]
 typedef ListBuilder<T> = Widget Function(BuildContext context, List<T> items, bool isSplitScreen);
