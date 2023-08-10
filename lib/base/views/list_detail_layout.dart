@@ -1,17 +1,16 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
-import 'package:list_detail_base/base/controllers/app_controller.dart';
-import 'package:list_detail_base/base/views/character_detail.dart';
-import 'package:list_detail_base/base/views/character_list.dart';
+import 'package:list_detail_base/base/controllers/list_detail_controller.dart';
 
+/// Builder for list portion of [ListDetailLayout]
 typedef ListBuilder<T> = Widget Function(BuildContext context, List<T> items, bool isSplitScreen);
 
+/// Builder for dealing with errors in fetching list datat
 typedef ListErrorBuilder = Widget Function(BuildContext context, Object error);
 
+/// Builder for detail portion of [ListDetailLayout]
 typedef DetailBuilder<T> = Widget Function(BuildContext context, T? item, bool isSplitScreen);
-
-typedef ListDetailBuilder = Widget Function(BuildContext context, Widget body);
 
 /// Display for app. Adaptive to size (tablet or phone), orientation
 /// (in large size), and platform (iOS or otherwise).
@@ -27,7 +26,6 @@ class ListDetailLayout<T> extends StatelessWidget {
     required this.controller,
     required this.listBuilder,
     required this.detailBuilder,
-    required this.listDetailBuilder,
     this.listErrorBuilder,
     this.loadingBuilder,
   });
@@ -35,8 +33,6 @@ class ListDetailLayout<T> extends StatelessWidget {
   final ListBuilder<T> listBuilder;
 
   final DetailBuilder<T> detailBuilder;
-
-  final ListDetailBuilder listDetailBuilder;
 
   final ListErrorBuilder? listErrorBuilder;
   final Builder? loadingBuilder;
@@ -72,7 +68,6 @@ class ListDetailLayout<T> extends StatelessWidget {
             selectedItem: controller.selectedItem,
             detailBuilder: detailBuilder,
             listBuilder: listBuilder,
-            listDetailBuilder: listDetailBuilder,
             listErrorBuilder: listErrorBuilder,
             loadingBuilder: loadingBuilder,
           );
@@ -108,7 +103,6 @@ class SizeAdaptiveView<T> extends StatelessWidget {
     required this.onSelect,
     required this.listBuilder,
     required this.detailBuilder,
-    required this.listDetailBuilder,
     this.listErrorBuilder,
     this.loadingBuilder,
   });
@@ -129,13 +123,16 @@ class SizeAdaptiveView<T> extends StatelessWidget {
   /// Function used to select character
   final ValueChanged<T?> onSelect;
 
+  /// Builder for the list part of list-detail.
   final ListBuilder<T> listBuilder;
 
+  /// Builder for the detail part of list-detail.
   final DetailBuilder<T> detailBuilder;
 
-  final ListDetailBuilder listDetailBuilder;
-
+  /// Optional builder for errors in fetching list
   final ListErrorBuilder? listErrorBuilder;
+
+  /// Optional builder for progress indicator while fetching list
   final Builder? loadingBuilder;
 
   @override
@@ -147,7 +144,6 @@ class SizeAdaptiveView<T> extends StatelessWidget {
             fetchList: fetchList,
             onSelect: onSelect,
             listBuilder: listBuilder,
-            listDetailBuilder: listDetailBuilder,
             listErrorBuilder: listErrorBuilder,
             loadingBuilder: loadingBuilder,
             detailBuilder: detailBuilder,
@@ -157,7 +153,6 @@ class SizeAdaptiveView<T> extends StatelessWidget {
             listErrorBuilder: listErrorBuilder,
             loadingBuilder: loadingBuilder,
             fetchList: fetchList,
-            onSelect: onSelect,
             isSplitScreen: false,
           );
   }
@@ -184,7 +179,6 @@ class ListDetail<T> extends StatelessWidget {
     required this.onSelect,
     required this.listBuilder,
     required this.detailBuilder,
-    required this.listDetailBuilder,
     this.listErrorBuilder,
     this.loadingBuilder,
   });
@@ -210,8 +204,6 @@ class ListDetail<T> extends StatelessWidget {
   final ListErrorBuilder? listErrorBuilder;
   final Builder? loadingBuilder;
 
-  final ListDetailBuilder listDetailBuilder;
-
   final String _listHero = 'list_hero';
   final String _detailHero = 'detail_hero';
 
@@ -225,7 +217,6 @@ class ListDetail<T> extends StatelessWidget {
         listErrorBuilder: listErrorBuilder,
         loadingBuilder: loadingBuilder,
         fetchList: fetchList,
-        onSelect: onSelect,
         isSplitScreen: true,
       ),
     );
@@ -235,7 +226,7 @@ class ListDetail<T> extends StatelessWidget {
     );
     Widget detail = Hero(
       tag: _detailHero,
-      child: ItemDetailTablet<T>(
+      child: ItemDetail(
         selectedItem: selectedItem,
         detailBuilder: detailBuilder,
       ),
@@ -254,12 +245,107 @@ class ListDetail<T> extends StatelessWidget {
       direction = Axis.horizontal;
       flexChildren = [list, const Divider(), detail];
     }
-    final body = Flex(
+    return Flex(
       mainAxisSize: MainAxisSize.max,
       crossAxisAlignment: CrossAxisAlignment.start,
       direction: direction,
       children: flexChildren,
     );
-    return listDetailBuilder(context, body);
+  }
+}
+
+/// Displays a list of T - based widgets, the list in [ListDetail].
+class ItemList<T> extends StatelessWidget {
+  /// Creates a list of T, the list in [ListDetail].
+  const ItemList({
+    super.key,
+    required this.listBuilder,
+    required this.fetchList,
+    required this.isSplitScreen,
+    this.listErrorBuilder,
+    this.loadingBuilder,
+  });
+
+  /// Used in [FutureBuilder] to get the list of T
+  final Future<List<T>> Function() fetchList;
+
+  /// Builder that wraps individual T in widgets
+  final ListBuilder<T> listBuilder;
+
+  /// If not null, builds error-wrapping widget if
+  /// [FutureBuilder] results in an error.
+  final ListErrorBuilder? listErrorBuilder;
+
+  /// If not null, provides a loading widget while [FutureBuilder] is
+  /// in [ConnectionState.waiting]
+  final Builder? loadingBuilder;
+
+  /// Flag determined by [ListDetail] and passed to this widget
+  /// in order to passed to [listBuilder] as a parameter.
+  final bool isSplitScreen;
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<List<T>>(
+      future: fetchList(),
+      builder: (context, snap) {
+        switch (snap.connectionState) {
+          case ConnectionState.none:
+            if (listErrorBuilder != null) {
+              return listErrorBuilder!(context, 'Unexpected Error');
+            }
+            return const Center(
+              child: Text('Unexpected Error'),
+            );
+          case ConnectionState.waiting:
+            if (loadingBuilder != null) {
+              return loadingBuilder!.build(context);
+            }
+            return const Center(child: CircularProgressIndicator());
+          case ConnectionState.active:
+          case ConnectionState.done:
+            if (snap.hasData) {
+              return listBuilder(context, snap.data!, isSplitScreen);
+            }
+            if (snap.hasError) {
+              if (listErrorBuilder != null) {
+                return listErrorBuilder!(context, snap.error!);
+              }
+              return Center(
+                child: Text(snap.error!.toString()),
+              );
+            }
+            return listBuilder(context, [], isSplitScreen);
+        }
+      },
+    );
+  }
+}
+
+/// A widget that uses [detailBuilder] to return a widget based
+/// on [selectedItem] value. Used in [ListDetail] for split 
+/// screen layouts.
+class ItemDetail<T> extends StatelessWidget {
+  /// Creates a widget that uses [detailBuilder] to return a 
+  /// widget based on [selectedItem] value. Used in 
+  /// [ListDetail] for split screen layouts.
+  const ItemDetail({
+    super.key,
+    required this.detailBuilder,
+    required this.selectedItem,
+  });
+
+  /// Builds a item detail widget based on value of [selectedItem]
+  final DetailBuilder<T> detailBuilder;
+
+  /// Listenable to which a [ValueListenableBuilder] is attached.
+  final ValueListenable<T?> selectedItem;
+
+  @override
+  Widget build(BuildContext context) {
+    return ValueListenableBuilder<T?>(
+      valueListenable: selectedItem,
+      builder: (context, item, _) => detailBuilder(context, item, true),
+    );
   }
 }
