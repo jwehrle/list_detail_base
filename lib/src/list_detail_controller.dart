@@ -1,14 +1,5 @@
 import 'package:flutter/foundation.dart';
 
-/// Leargest size of shortest side of a phone
-const double kSizeBreakPoint = 550.0;
-
-/// Flex for list in large mode
-const int kListFlex = 2;
-
-/// Flex for detail in large mode
-const int kDetailFlex = 3;
-
 /// A controller for list-detail pattern apps
 /// that enables fetching the list and selecting items.
 /// Built for use-case of fetching with an http client

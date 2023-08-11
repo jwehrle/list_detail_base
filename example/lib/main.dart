@@ -14,12 +14,11 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'ListDetail Example',
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
         useMaterial3: true,
       ),
-      home: const MyHomePage(title: 'Flutter Demo Home Page'),
+      home: const MyHomePage(title: 'Color Etymology'),
     );
   }
 }
@@ -33,19 +32,186 @@ class MyHomePage extends StatefulWidget {
   State<MyHomePage> createState() => _MyHomePageState();
 }
 
-class ColorModel {
+class _MyHomePageState extends State<MyHomePage> {
+  late final ListDetailController<ColorEtymology> controller;
+
+  @override
+  void initState() {
+    super.initState();
+    controller = ListDetailController(
+      fetch: () => Future.delayed(Duration(seconds: 5), () => Future.value(colorMapList)),
+      transform: (map) => ColorEtymology.fromMap(map),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: Text(widget.title)),
+      body: ListDetailLayout(
+        controller: controller,
+        listBuilder: (context, items, isSplitScreen) => ListView.builder(
+          itemCount: items.length,
+          itemBuilder: (context, index) => Item(
+            colorModel: items[index],
+            isSplitScreen: isSplitScreen,
+            onSelect: (value) => controller.select = value,
+          ),
+        ),
+        detailBuilder: (context, item, isSplitScreen) => item == null
+            ? Container()
+            : ColorModelDetail(
+                colorModel: item,
+                isSplitScreen: isSplitScreen,
+                colorModelListenable: controller.selectedItem,
+              ),
+      ),
+    );
+  }
+
+  @override
+  void dispose() {
+    controller.dispose();
+    super.dispose();
+  }
+}
+
+class Item extends StatelessWidget {
+  const Item({
+    super.key,
+    required this.colorModel,
+    required this.isSplitScreen,
+    required this.onSelect,
+  });
+
+  final ColorEtymology colorModel;
+  final bool isSplitScreen;
+  final ValueChanged<ColorEtymology?> onSelect;
+
+  @override
+  Widget build(BuildContext context) {
+    return ListTile(
+      leading: CircleAvatar(
+        backgroundColor: colorModel.color,
+      ),
+      title: Text(colorModel.name),
+      onTap: () {
+        onSelect(colorModel);
+        if (!isSplitScreen) {
+          Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (context) {
+                return Scaffold(
+                  appBar: AppBar(
+                    title: Text(colorModel.name),
+                  ),
+                  body: ColorModelDetail(
+                    colorModel: colorModel,
+                    isSplitScreen: isSplitScreen,
+                  ),
+                );
+              },
+            ),
+          );
+        }
+      },
+    );
+  }
+}
+
+const double kLuminancePivot = 0.28; //0.179;
+
+Color textColor(Color background) {
+  return background.computeLuminance() > kLuminancePivot
+      ? Colors.black87
+      : Colors.white;
+}
+
+class ColorModelDetail extends StatelessWidget {
+  const ColorModelDetail({
+    super.key,
+    required this.colorModel,
+    required this.isSplitScreen,
+    this.colorModelListenable,
+  }) : assert(
+          !isSplitScreen || colorModelListenable != null,
+        );
+
+  final ColorEtymology? colorModel;
+  final bool isSplitScreen;
+  final ValueListenable<ColorEtymology?>? colorModelListenable;
+
+  @override
+  Widget build(BuildContext context) {
+    if (isSplitScreen) {
+      return ValueListenableBuilder<ColorEtymology?>(
+        valueListenable: colorModelListenable!,
+        builder: (context, value, _) {
+          return AnimatedSwitcher(
+            duration: kThemeAnimationDuration,
+            child: value == null
+                ? Container()
+                : ColorModelCard(
+                    key: ValueKey(value.hashCode),
+                    colorModel: value,
+                  ),
+          );
+        },
+      );
+    }
+
+    if (colorModel == null) {
+      return Container();
+    }
+    return ColorModelCard(colorModel: colorModel!);
+  }
+}
+
+class ColorModelCard extends StatelessWidget {
+  const ColorModelCard({
+    super.key,
+    required this.colorModel,
+  });
+
+  final ColorEtymology colorModel;
+
+  @override
+  Widget build(BuildContext context) {
+    Color foreground = textColor(colorModel.color);
+    TextStyle style = TextStyle(color: foreground);
+    if (foreground == Colors.white) {
+      style = style.copyWith(fontWeight: FontWeight.bold);
+    }
+    return Padding(
+      padding: const EdgeInsets.all(32.0),
+      child: Card(
+        color: colorModel.color,
+        child: Center(
+          child: ListTile(
+            title: Text(colorModel.name, style: style),
+            subtitle: Text(colorModel.etymology, style: style),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Data
+
+class ColorEtymology {
   final Color color;
   final String name;
   final String etymology;
 
-  const ColorModel({
+  const ColorEtymology({
     required this.color,
     required this.name,
     required this.etymology,
   });
 
-  factory ColorModel.fromMap(Map<String, dynamic> map) {
-    return ColorModel(
+  factory ColorEtymology.fromMap(Map<String, dynamic> map) {
+    return ColorEtymology(
       color: Color(map['color']),
       name: map['name'],
       etymology: map['etymology'],
@@ -53,7 +219,7 @@ class ColorModel {
   }
 
   @override
-  bool operator ==(covariant ColorModel other) {
+  bool operator ==(covariant ColorEtymology other) {
     if (identical(this, other)) return true;
 
     return other.color == color &&
@@ -125,168 +291,3 @@ List<Map<String, dynamic>> colorMapList = [
         'Middle English, from Anglo-French orrange, araunge, from Old Occitan auranja, from Arabic nāranj, from Persian nārang, from Sanskrit nāraṅga orange tree.',
   },
 ];
-
-class _MyHomePageState extends State<MyHomePage> {
-  late final ListDetailController<ColorModel> controller;
-
-  @override
-  void initState() {
-    super.initState();
-    controller = ListDetailController(
-      fetch: () => Future.value(colorMapList),
-      transform: (map) => ColorModel.fromMap(map),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: Text(widget.title)),
-      body: ListDetailLayout(
-        controller: controller,
-        listBuilder: (context, items, isSplitScreen) => ListView.builder(
-          itemCount: items.length,
-          itemBuilder: (context, index) => Item(
-            colorModel: items[index],
-            isSplitScreen: isSplitScreen,
-            onSelect: (value) => controller.select = value,
-          ),
-        ),
-        detailBuilder: (context, item, isSplitScreen) => item == null
-            ? Container()
-            : ColorModelDetail(
-                colorModel: item,
-                isSplitScreen: isSplitScreen,
-                colorModelListenable: controller.selectedItem,
-              ),
-      ),
-    );
-  }
-
-  @override
-  void dispose() {
-    controller.dispose();
-    super.dispose();
-  }
-}
-
-class Item extends StatelessWidget {
-  const Item({
-    super.key,
-    required this.colorModel,
-    required this.isSplitScreen,
-    required this.onSelect,
-  });
-
-  final ColorModel colorModel;
-  final bool isSplitScreen;
-  final ValueChanged<ColorModel?> onSelect;
-
-  @override
-  Widget build(BuildContext context) {
-    return ListTile(
-      leading: CircleAvatar(
-        backgroundColor: colorModel.color,
-      ),
-      title: Text(colorModel.name),
-      onTap: () {
-        onSelect(colorModel);
-        if (!isSplitScreen) {
-          Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (context) {
-                return Scaffold(
-                  appBar: AppBar(
-                    title: Text(colorModel.name),
-                  ),
-                  body: ColorModelDetail(
-                    colorModel: colorModel,
-                    isSplitScreen: isSplitScreen,
-                  ),
-                );
-              },
-            ),
-          );
-        }
-      },
-    );
-  }
-}
-
-const double kLuminancePivot = 0.28; //0.179;
-
-Color textColor(Color background) {
-  return background.computeLuminance() > kLuminancePivot
-      ? Colors.black87
-      : Colors.white;
-}
-
-class ColorModelDetail extends StatelessWidget {
-  const ColorModelDetail({
-    super.key,
-    required this.colorModel,
-    required this.isSplitScreen,
-    this.colorModelListenable,
-  }) : assert(
-          !isSplitScreen || colorModelListenable != null,
-        );
-
-  final ColorModel? colorModel;
-  final bool isSplitScreen;
-  final ValueListenable<ColorModel?>? colorModelListenable;
-
-  @override
-  Widget build(BuildContext context) {
-    if (isSplitScreen) {
-      return ValueListenableBuilder<ColorModel?>(
-        valueListenable: colorModelListenable!,
-        builder: (context, value, _) {
-          return AnimatedSwitcher(
-            duration: kThemeAnimationDuration,
-            child: value == null
-                ? Container()
-                : ColorModelCard(
-                    key: ValueKey(value.hashCode),
-                    colorModel: value,
-                  ),
-          );
-        },
-      );
-    }
-
-    if (colorModel == null) {
-      return Container();
-    }
-    return ColorModelCard(colorModel: colorModel!);
-  }
-}
-
-class ColorModelCard extends StatelessWidget {
-  const ColorModelCard({
-    super.key,
-    required this.colorModel,
-  });
-
-  final ColorModel colorModel;
-
-  @override
-  Widget build(BuildContext context) {
-    Color foreground = textColor(colorModel.color);
-    TextStyle style = TextStyle(color: foreground);
-    if (foreground == Colors.white) {
-      style = style.copyWith(fontWeight: FontWeight.bold);
-    }
-    return Padding(
-      padding: const EdgeInsets.all(32.0),
-      child: Card(
-        color: colorModel.color,
-        child: Center(
-          child: ListTile(
-            title: Text(colorModel.name, style: style),
-            subtitle: Text(colorModel.etymology, style: style),
-          ),
-        ),
-      ),
-    );
-  }
-}

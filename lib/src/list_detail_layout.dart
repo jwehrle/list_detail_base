@@ -3,24 +3,37 @@ import 'package:flutter/material.dart';
 
 import 'list_detail_controller.dart';
 
+/// Leargest size of shortest side of a phone
+const double kSizeBreakPoint = 550.0;
+
+/// Flex for list in large mode
+const int kListFlex = 2;
+
+/// Flex for detail in large mode
+const int kDetailFlex = 3;
+
 /// Builder for list portion of [ListDetailLayout]
-typedef ListBuilder<T> = Widget Function(BuildContext context, List<T> items, bool isSplitScreen);
+typedef ListBuilder<T> = Widget Function(
+    BuildContext context, List<T> items, bool isSplitScreen);
 
 /// Builder for dealing with errors in fetching list datat
 typedef ListErrorBuilder = Widget Function(BuildContext context, Object error);
 
 /// Builder for detail portion of [ListDetailLayout]
-typedef DetailBuilder<T> = Widget Function(BuildContext context, T? item, bool isSplitScreen);
+typedef DetailBuilder<T> = Widget Function(
+  BuildContext context,
+  T? item,
+  bool isSplitScreen,
+);
 
-/// Display for app. Adaptive to size (tablet or phone), orientation
-/// (in large size), and platform (iOS or otherwise).
-/// In large mode, displays list + detail of selected Character.
-/// In small mode, displays list.
+/// Order of list and detail in layout
+enum LayoutOrder { listDetail, detailList }
+
+/// Widget that coordinates layout and selection of the
+/// List-Detail or Master-Detail pattern.
 class ListDetailLayout<T> extends StatelessWidget {
-  /// Creates a widget that displays for app. Adaptive to size
-  ///  (tablet or phone), orientation (in large size), and
-  /// platform (iOS or otherwise). In large mode, displays
-  /// list + detail of selected Character. In small mode, displays list.
+  /// Creates a widget that widget that coordinates layout
+  ///  and selection of the List-Detail or Master-Detail pattern.
   const ListDetailLayout({
     super.key,
     required this.controller,
@@ -28,93 +41,159 @@ class ListDetailLayout<T> extends StatelessWidget {
     required this.detailBuilder,
     this.listErrorBuilder,
     this.loadingBuilder,
+    this.orientationAdaptive = true,
+    this.alwaysSplit = false,
+    this.listFlex = kListFlex,
+    this.detailFlex = kDetailFlex,
+    this.splitSize = kSizeBreakPoint,
+    this.portraitOrder = LayoutOrder.detailList,
+    this.landscapeOrder = LayoutOrder.listDetail,
   });
 
+  /// Builder for list portion of layout
   final ListBuilder<T> listBuilder;
 
+  /// Builder for detail portion of combined layout
   final DetailBuilder<T> detailBuilder;
 
+  /// Optional builder for errors in fetching list
   final ListErrorBuilder? listErrorBuilder;
+
+  /// Optional builder to be shown while FutureBuilder is waiting
   final Builder? loadingBuilder;
 
-  /// Controller for fetching list of characters and selecting
-  /// characters
+  /// Whether the layout shoud change when orientation changes.
+  /// Defaults to true.
+  final bool orientationAdaptive;
+
+  /// Whether the split view should be used regardless of
+  /// screen size. Defaults to false, in which case [splitSize]
+  /// is used to determine whether to use a split layout
+  final bool alwaysSplit;
+
+  /// The flex factor used for list. Defaults to [kListFlex] or 2.
+  final int listFlex;
+
+  /// The flex factor used for detail. Defaults to [kDetailFlex] or 3.
+  final int detailFlex;
+
+  /// The break point between small screens and large screens
+  /// which determines wheher to use a split layout when
+  /// [alwaysSplit] is false.
+  /// Defaulst to [kSizeBreakPoint] or 550.0
+  final double splitSize;
+
+  /// The layout order in portait. Defaults to [LayoutOrder.detailList]
+  final LayoutOrder portraitOrder;
+
+  /// The layout order in landscape. Defaults to [LayoutOrder.listDetail]
+  final LayoutOrder landscapeOrder;
+
+  /// Controller for this widget.
   final ListDetailController<T> controller;
 
   /// Determines whether device is larger than a typical phone
-  bool _isLarge(BuildContext context, BoxConstraints constraints) {
+  bool _isSplit(BuildContext context, BoxConstraints constraints) {
     bool isLarge;
     if (constraints.hasBoundedHeight && constraints.hasBoundedWidth) {
       double shortest = constraints.maxHeight > constraints.maxWidth
           ? constraints.maxWidth
           : constraints.maxHeight;
-      isLarge = shortest > kSizeBreakPoint;
+      isLarge = shortest > splitSize;
     } else {
-      isLarge = MediaQuery.of(context).size.shortestSide > kSizeBreakPoint;
+      isLarge = MediaQuery.of(context).size.shortestSide > splitSize;
     }
     return isLarge;
   }
 
+  /// Returns a [_SizeAdaptiveView] based on [split] and [orientation]
+  Widget _viewBuilder(bool split, Orientation orientation) {
+    return _SizeAdaptiveView<T>(
+      isSplit: split,
+      orientation: orientation,
+      fetchList: controller.fetchList,
+      onSelect: (character) => controller.select = character,
+      selectedItem: controller.selectedItem,
+      detailBuilder: detailBuilder,
+      listBuilder: listBuilder,
+      listErrorBuilder: listErrorBuilder,
+      loadingBuilder: loadingBuilder,
+      listFlex: listFlex,
+      detailFlex: detailFlex,
+      portraitOrder: portraitOrder,
+      landscapeOrder: landscapeOrder,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    return OrientationBuilder(builder: (context, orientation) {
-      return LayoutBuilder(
-        builder: (context, constraints) {
-          return SizeAdaptiveView<T>(
-            isLarge: _isLarge(context, constraints),
-            orientation: orientation,
-            fetchList: controller.fetchList,
-            onSelect: (character) => controller.select = character,
-            selectedItem: controller.selectedItem,
-            detailBuilder: detailBuilder,
-            listBuilder: listBuilder,
-            listErrorBuilder: listErrorBuilder,
-            loadingBuilder: loadingBuilder,
-          );
+    if (orientationAdaptive) {
+      return OrientationBuilder(
+        builder: (context, orientation) {
+          return alwaysSplit
+              ? _viewBuilder(true, orientation)
+              : LayoutBuilder(
+                  builder: (context, constraints) => _viewBuilder(
+                    _isSplit(context, constraints),
+                    orientation,
+                  ),
+                );
         },
       );
-    });
+    }
+    return alwaysSplit
+        ? _viewBuilder(true, Orientation.landscape)
+        : LayoutBuilder(
+            builder: (context, constraints) => _viewBuilder(
+              _isSplit(context, constraints),
+              Orientation.landscape,
+            ),
+          );
   }
 }
 
-/// Displays either [ListDetail] or [CharacterList] depending
-/// on [isLarge].
-/// [isLarge] : Whether device is larger than a phone (tablet)
-/// [orientation] : Orientation of device, used by [ListDetail]
-/// [selectedCharacter] : ValueListenable of character used by
-/// both [ListDetail] and [CharacterList]
-/// [getCharacterList] : Function used to fetch list of characters
-/// [onSelect] : Function used to select character
-class SizeAdaptiveView<T> extends StatelessWidget {
-  /// Creates a widget that displays either [ListDetail] or
-  /// [CharacterList] depending on [isLarge].
-  /// [isLarge] : Whether device is larger than a phone (tablet)
-  /// [orientation] : Orientation of device, used by [ListDetail]
-  /// [selectedCharacter] : ValueListenable of character used by
-  /// both [ListDetail] and [CharacterList]
-  /// [getCharacterList] : Function used to fetch list of characters
-  /// [onSelect] : Function used to select character
-  const SizeAdaptiveView({
+/// Displays either [_ListDetail] or [_ItemList] depending
+/// on [isSplit].
+class _SizeAdaptiveView<T> extends StatelessWidget {
+  /// Creates a widget that displays either [_ListDetail]
+  ///  or [_ItemList] depending on [isSplit].
+  const _SizeAdaptiveView({
     super.key,
-    required this.isLarge,
+    required this.isSplit,
     required this.orientation,
     required this.selectedItem,
     required this.fetchList,
     required this.onSelect,
     required this.listBuilder,
     required this.detailBuilder,
+    required this.listFlex,
+    required this.detailFlex,
+    required this.portraitOrder,
+    required this.landscapeOrder,
     this.listErrorBuilder,
     this.loadingBuilder,
   });
 
-  ///Whether device is larger than a phone (tablet)
-  final bool isLarge;
+  /// The layout order in portrait when split
+  final LayoutOrder portraitOrder;
 
-  /// Orientation of device, used by [ListDetail]
+  /// The layout order in landscape when split
+  final LayoutOrder landscapeOrder;
+
+  /// The flex factor of list when split
+  final int listFlex;
+
+  /// The flex factor of detail when split
+  final int detailFlex;
+
+  ///Whether device is larger than a phone (tablet)
+  final bool isSplit;
+
+  /// Orientation of device, used by [_ListDetail]
   final Orientation orientation;
 
   /// ValueListenable of character used by
-  /// both [ListDetail] and [CharacterList]
+  /// both [_ListDetail] and [CharacterList]
   final ValueListenable<T?> selectedItem;
 
   /// Function used to fetch list of characters
@@ -137,8 +216,8 @@ class SizeAdaptiveView<T> extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return isLarge
-        ? ListDetail(
+    return isSplit
+        ? _ListDetail(
             orientation: orientation,
             selectedItem: selectedItem,
             fetchList: fetchList,
@@ -147,31 +226,25 @@ class SizeAdaptiveView<T> extends StatelessWidget {
             listErrorBuilder: listErrorBuilder,
             loadingBuilder: loadingBuilder,
             detailBuilder: detailBuilder,
+            listFlex: listFlex,
+            detailFlex: detailFlex,
+            portraitOrder: portraitOrder,
+            landscapeOrder: landscapeOrder,
           )
-        : ItemList(
+        : _ItemList(
             listBuilder: listBuilder,
             listErrorBuilder: listErrorBuilder,
             loadingBuilder: loadingBuilder,
             fetchList: fetchList,
-            isSplitScreen: false,
+            isSplit: false,
           );
   }
 }
 
-/// Displays both list and deatil views. Facilitates search
-/// and selection and detail display in one view.
-/// [orientation] determines the location of list and detail.
-/// [selectedCharacter] ValueListenable detail listens to.
-/// [getCharacterList] Function returns Future<List<Character>>
-/// [onSelect] callback for list to select characters.
-class ListDetail<T> extends StatelessWidget {
+/// Displays both list and deatil views.
+class _ListDetail<T> extends StatelessWidget {
   /// Creates a widget that displays both list and deatil views.
-  /// Facilitates search and selection and detail display in one view.
-  /// [orientation] determines the location of list and detail.
-  /// [selectedCharacter] ValueListenable detail listens to.
-  /// [getCharacterList] Function returns Future<List<Character>>
-  /// [onSelect] callback for list to select characters.
-  const ListDetail({
+  const _ListDetail({
     super.key,
     required this.orientation,
     required this.selectedItem,
@@ -179,9 +252,25 @@ class ListDetail<T> extends StatelessWidget {
     required this.onSelect,
     required this.listBuilder,
     required this.detailBuilder,
+    required this.listFlex,
+    required this.detailFlex,
+    required this.portraitOrder,
+    required this.landscapeOrder,
     this.listErrorBuilder,
     this.loadingBuilder,
   });
+
+  /// The layout order in portrait when split
+  final LayoutOrder portraitOrder;
+
+  /// The layout order in landscape when split
+  final LayoutOrder landscapeOrder;
+
+  /// The flex factor of list when split
+  final int listFlex;
+
+  /// The flex factor of detail when split
+  final int detailFlex;
 
   /// Device orientation. Determines direction and location
   /// of list and detail
@@ -197,71 +286,89 @@ class ListDetail<T> extends StatelessWidget {
   /// Callback for list items to select character
   final ValueChanged<T?> onSelect;
 
+  /// Builder for the list part of list-detail.
   final ListBuilder<T> listBuilder;
 
+  /// Builder for the detail part of list-detail.
   final DetailBuilder<T> detailBuilder;
 
+  /// Optional builder for errors in fetching list
   final ListErrorBuilder? listErrorBuilder;
+
+  /// Optional builder for progress indicator while fetching list
   final Builder? loadingBuilder;
 
+  /// Hero tag for list
   final String _listHero = 'list_hero';
+
+  /// Hero tag for detail
   final String _detailHero = 'detail_hero';
+
+  /// Returns Flex children based on [orientation],
+  /// [portraitOrder], and [landscapeOrder]
+  List<Widget> _children(
+    Orientation orientation,
+    Widget detail,
+    Widget list,
+  ) {
+    if (orientation == Orientation.portrait) {
+      if (portraitOrder == LayoutOrder.detailList) {
+        return [detail, list];
+      } else {
+        return [list, detail];
+      }
+    }
+    if (landscapeOrder == LayoutOrder.detailList) {
+      return [detail, list];
+    } else {
+      return [list, detail];
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     // Make basic list view
-    Widget list = Hero(
-      tag: _listHero,
-      child: ItemList(
-        listBuilder: listBuilder,
-        listErrorBuilder: listErrorBuilder,
-        loadingBuilder: loadingBuilder,
-        fetchList: fetchList,
-        isSplitScreen: true,
+    Widget list = Flexible(
+      flex: listFlex,
+      child: Hero(
+        tag: _listHero,
+        child: _ItemList(
+          listBuilder: listBuilder,
+          listErrorBuilder: listErrorBuilder,
+          loadingBuilder: loadingBuilder,
+          fetchList: fetchList,
+          isSplit: true,
+        ),
       ),
     );
-    list = Flexible(
-      flex: kListFlex,
-      child: list,
-    );
-    Widget detail = Hero(
-      tag: _detailHero,
-      child: ItemDetail(
-        selectedItem: selectedItem,
-        detailBuilder: detailBuilder,
+    Widget detail = Flexible(
+      flex: detailFlex,
+      child: Hero(
+        tag: _detailHero,
+        child: _ItemDetail(
+          selectedItem: selectedItem,
+          detailBuilder: detailBuilder,
+        ),
       ),
     );
-    detail = Flexible(
-      flex: kDetailFlex,
-      child: detail,
-    );
-    // Assemble Flex params
-    final Axis direction;
-    final List<Widget> flexChildren;
-    if (orientation == Orientation.portrait) {
-      direction = Axis.vertical;
-      flexChildren = [detail, const Divider(), list];
-    } else {
-      direction = Axis.horizontal;
-      flexChildren = [list, const Divider(), detail];
-    }
+    final isPortait = orientation == Orientation.portrait;
     return Flex(
       mainAxisSize: MainAxisSize.max,
       crossAxisAlignment: CrossAxisAlignment.start,
-      direction: direction,
-      children: flexChildren,
+      direction: isPortait ? Axis.vertical : Axis.horizontal,
+      children: _children(orientation, detail, list),
     );
   }
 }
 
-/// Displays a list of T - based widgets, the list in [ListDetail].
-class ItemList<T> extends StatelessWidget {
-  /// Creates a list of T, the list in [ListDetail].
-  const ItemList({
+/// Displays a list of T - based widgets, the list in [_ListDetail].
+class _ItemList<T> extends StatelessWidget {
+  /// Creates a list of T, the list in [_ListDetail].
+  const _ItemList({
     super.key,
     required this.listBuilder,
     required this.fetchList,
-    required this.isSplitScreen,
+    required this.isSplit,
     this.listErrorBuilder,
     this.loadingBuilder,
   });
@@ -280,9 +387,9 @@ class ItemList<T> extends StatelessWidget {
   /// in [ConnectionState.waiting]
   final Builder? loadingBuilder;
 
-  /// Flag determined by [ListDetail] and passed to this widget
+  /// Flag determined by [_ListDetail] and passed to this widget
   /// in order to passed to [listBuilder] as a parameter.
-  final bool isSplitScreen;
+  final bool isSplit;
 
   @override
   Widget build(BuildContext context) {
@@ -305,7 +412,7 @@ class ItemList<T> extends StatelessWidget {
           case ConnectionState.active:
           case ConnectionState.done:
             if (snap.hasData) {
-              return listBuilder(context, snap.data!, isSplitScreen);
+              return listBuilder(context, snap.data!, isSplit);
             }
             if (snap.hasError) {
               if (listErrorBuilder != null) {
@@ -315,7 +422,7 @@ class ItemList<T> extends StatelessWidget {
                 child: Text(snap.error!.toString()),
               );
             }
-            return listBuilder(context, [], isSplitScreen);
+            return listBuilder(context, [], isSplit);
         }
       },
     );
@@ -323,13 +430,13 @@ class ItemList<T> extends StatelessWidget {
 }
 
 /// A widget that uses [detailBuilder] to return a widget based
-/// on [selectedItem] value. Used in [ListDetail] for split 
+/// on [selectedItem] value. Used in [_ListDetail] for split
 /// screen layouts.
-class ItemDetail<T> extends StatelessWidget {
-  /// Creates a widget that uses [detailBuilder] to return a 
-  /// widget based on [selectedItem] value. Used in 
-  /// [ListDetail] for split screen layouts.
-  const ItemDetail({
+class _ItemDetail<T> extends StatelessWidget {
+  /// Creates a widget that uses [detailBuilder] to return a
+  /// widget based on [selectedItem] value. Used in
+  /// [_ListDetail] for split screen layouts.
+  const _ItemDetail({
     super.key,
     required this.detailBuilder,
     required this.selectedItem,
