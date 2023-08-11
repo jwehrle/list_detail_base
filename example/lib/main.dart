@@ -39,7 +39,7 @@ class _MyHomePageState extends State<MyHomePage> {
   void initState() {
     super.initState();
     controller = ListDetailController(
-      fetch: () => Future.delayed(Duration(seconds: 5), () => Future.value(colorMapList)),
+      fetch: () => Future.delayed(const Duration(seconds: 5), () => Future.value(colorMapList)),
       transform: (map) => ColorEtymology.fromMap(map),
     );
   }
