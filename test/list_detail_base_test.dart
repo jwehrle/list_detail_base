@@ -1,10 +1,14 @@
+// ignore_for_file: avoid_relative_lib_imports
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:list_detail_base/list_detail_base.dart';
+import '../example/lib/data/example_data.dart';
+import '../example/lib/views/example_views.dart';
 
 void main() {
-  test('description', () async {
+  test('Controller', () async {
     ListDetailController controller = ListDetailController(
       fetch: () => Future.value(colorMapList),
       transform: ColorEtymology.fromMap,
@@ -19,103 +23,86 @@ void main() {
     expect(result2, everyElement(const TypeMatcher<ColorEtymology>()));
 
     controller.select = result2.first;
-    Future.delayed(const Duration(seconds: 1), () => expect(controller.selectedItem.value, result2.first));
+    Future.delayed(const Duration(seconds: 1),
+        () => expect(controller.selectedItem.value, result2.first));
+
+    controller.dispose();
+  });
+
+  testWidgets('Widgets', (widgetTester) async {
+    await widgetTester.binding.setSurfaceSize(const Size(1080.0, 810.0));
+    addTearDown(widgetTester.view.resetPhysicalSize);
+
+    const none = ValueKey('none_selected');
+
+    ListDetailController<ColorEtymology> controller = ListDetailController(
+      fetch: () => Future.value(colorMapList),
+      transform: ColorEtymology.fromMap,
+    );
+    await widgetTester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: ListDetailLayout(
+            controller: controller,
+            listBuilder: (context, items, isSplitScreen) => ListView.builder(
+            itemCount: items.length,
+            itemBuilder: (context, index) => Item(
+              colorModel: items[index],
+              isSplitScreen: isSplitScreen,
+              onSelect: (value) => controller.select = value,
+            ),
+          ),
+          detailBuilder: (context, item, isSplitScreen) => item == null
+              ? Container(key: none)
+              : ColorModelDetail(
+                  key: ValueKey(item.name),
+                  colorModel: item,
+                  isSplitScreen: isSplitScreen,
+                  colorModelListenable: controller.selectedItem,
+                ),
+          ),
+        ),
+      ),
+    );
+
+    await widgetTester.pumpAndSettle();
+
+    final noneFinder1 = find.byKey(none);
+    expect(noneFinder1, findsOneWidget);
+
+    final redFinder = find.text('Red');
+    expect(redFinder, findsOneWidget);
+    final pinkFinder = find.text('Pink');
+    expect(pinkFinder, findsOneWidget);
+    expect(find.text('Purple'), findsOneWidget);
+    expect(find.text('Indigo'), findsOneWidget);
+    expect(find.text('Blue'), findsOneWidget);
+    expect(find.text('Cyan'), findsOneWidget);
+    expect(find.text('Green'), findsOneWidget);
+    expect(find.text('Yellow'), findsOneWidget);
+    expect(find.text('Amber'), findsOneWidget);
+    expect(find.text('Orange'), findsOneWidget);
+
+    await widgetTester.tap(redFinder);
+
+    await widgetTester.pumpAndSettle();
+
+    final noneFinder2 = find.byKey(none);
+    expect(noneFinder2, findsNothing);
+
+    final detailFinder1 = find.byKey(const ValueKey('Red'));
+    expect(detailFinder1, findsOneWidget);
+
+    await widgetTester.tap(pinkFinder);
+
+    await widgetTester.pumpAndSettle();
+
+    final noneFinder3 = find.byKey(none);
+    expect(noneFinder3, findsNothing);
+
+    final detailFinder2 = find.byKey(const ValueKey('Pink'));
+    expect(detailFinder2, findsOneWidget);
 
     controller.dispose();
   });
 }
-
-// Data
-
-class ColorEtymology {
-  final Color color;
-  final String name;
-  final String etymology;
-
-  const ColorEtymology({
-    required this.color,
-    required this.name,
-    required this.etymology,
-  });
-
-  factory ColorEtymology.fromMap(Map<String, dynamic> map) {
-    return ColorEtymology(
-      color: Color(map['color']),
-      name: map['name'],
-      etymology: map['etymology'],
-    );
-  }
-
-  @override
-  bool operator ==(covariant ColorEtymology other) {
-    if (identical(this, other)) return true;
-
-    return other.color == color &&
-        other.name == name &&
-        other.etymology == etymology;
-  }
-
-  @override
-  int get hashCode => color.hashCode ^ name.hashCode ^ etymology.hashCode;
-}
-
-List<Map<String, dynamic>> colorMapList = [
-  {
-    'color': Colors.redAccent.value,
-    'name': 'Red',
-    'etymology':
-        'Middle English red, rede, reed, going back to Old English rēad, going back to Germanic *rauđa- (whence also Old Frisian rād, rōd "red, yellow," Old Saxon rōd "red," Middle Dutch root, rood, Old High German rōt, Old Norse rauðr, Gothic rauþs), going back to Indo-European *h1rou̯dh-o-, whence also Old Irish rúad "reddish brown, dark red," Welsh rhudd "red, tawny," Latin rūfus (from a dialect or another Italic language, with -f- for expected -b-), Lithuanian raũdas "red-brown, reddish," Russian dialect rúdyj "blood-red," Bosnian-Croatian-Serbian rûd "reddish brown"; from a suffixed zero-grade form *h1rudh-ro-, Old Norse roðra "blood," Latin ruber "red," Tocharian B ratre, Greek erythrós, Sanskrit rudhiráḥ "red, bloody".',
-  },
-  {
-    'color': Colors.pinkAccent.value,
-    'name': 'Pink',
-    'etymology': 'Middle English, from Middle Dutch pinke.',
-  },
-  {
-    'color': Colors.purpleAccent.value,
-    'name': 'Purple',
-    'etymology':
-        'Middle English purpel, alteration of purper, from Old English purpuran of purple, genitive of purpure purple color, from Latin purpura, from Greek porphyra.',
-  },
-  {
-    'color': Colors.indigoAccent.value,
-    'name': 'Indigo',
-    'etymology':
-        'Italian dialect, from Latin indicum, from Greek indikon, from neuter of indikos Indic, from Indos India.',
-  },
-  {
-    'color': Colors.blueAccent.value,
-    'name': 'Blue',
-    'etymology':
-        'Middle English, from Anglo-French blef, blew, of Germanic origin; akin to Old High German blāo blue; akin to Latin flavus yellow.',
-  },
-  {
-    'color': Colors.cyanAccent.value,
-    'name': 'Cyan',
-    'etymology': 'Greek kyanos.',
-  },
-  {
-    'color': Colors.greenAccent.value,
-    'name': 'Green',
-    'etymology':
-        'Middle English grene, from Old English grēne; akin to Old English grōwan to grow.',
-  },
-  {
-    'color': Colors.yellowAccent.value,
-    'name': 'Yellow',
-    'etymology':
-        'Middle English yelwe, yelow, from Old English geolu; akin to Old High German gelo yellow, Latin helvus light bay, Greek chlōros greenish yellow, Sanskrit hari yellowish.',
-  },
-  {
-    'color': Colors.amberAccent.value,
-    'name': 'Amber',
-    'etymology':
-        'Middle English ambre, from Anglo-French, from Medieval Latin ambra, from Arabic ʽanbar ambergris.',
-  },
-  {
-    'color': Colors.orangeAccent.value,
-    'name': 'Orange',
-    'etymology':
-        'Middle English, from Anglo-French orrange, araunge, from Old Occitan auranja, from Arabic nāranj, from Persian nārang, from Sanskrit nāraṅga orange tree.',
-  },
-];
