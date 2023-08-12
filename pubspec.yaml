@@ -1,7 +1,7 @@
 name: list_detail_base
 description: A new Flutter package project.
 version: 0.0.1
-homepage:
+homepage: https://github.com/jwehrle/list_detail_base
 
 environment:
   sdk: '>=3.0.5 <4.0.0'
