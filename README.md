@@ -11,29 +11,88 @@ and the Flutter guide for
 [developing packages and plugins](https://flutter.dev/developing-packages).
 -->
 
-TODO: Put a short description of the package here that helps potential users
-know whether this package might be useful for them.
+# ListDetailBase is a template package for List-Detail or Master-Detail layouts
 
 ## Features
 
-TODO: List what your package can do. Maybe include images, gifs, or videos.
+* Builds for large or small screens in one simple widget.
+* Easily modifiable.
+* Handles all state management with no dependencies and no fuss.
+* Simple package. Look at the code. There's not much complexity.
 
 ## Getting started
 
-TODO: List prerequisites and provide or point to information on how to
-start using the package.
+Add package
+
+```dart
+flutter pub add list_detail_base
+```
 
 ## Usage
 
-TODO: Include short and useful examples for package users. Add longer examples
-to `/example` folder.
+Import
 
 ```dart
-const like = 'sample';
+import 'package:list_detail_base/list_detail_base.dart';
+```
+
+Example (explore example code in the example app - it's short).
+
+```dart
+/// Example of ListDetailBase
+class _MyHomePageState extends State<MyHomePage> {
+
+  /// Make a controller with the same type as your list.
+  /// [ColorEtymology] is an example data class
+  late final ListDetailController<ColorEtymology> controller;
+
+  @override
+  void initState() {
+    super.initState();
+    /// 5 second delay for show. Transform turns JSON list into a 
+    /// list of your model 
+    controller = ListDetailController(
+      fetch: () => Future.delayed(const Duration(seconds: 5), () => Future.value(colorMapList)),
+      transform: ColorEtymology.fromMap,
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: Text(widget.title)),
+      body: ListDetailLayout(
+        controller: controller,
+        listBuilder: (context, items, isSplitScreen) => ListView.builder(
+          itemCount: items.length,
+          // [Item] is an example view - a ListTile
+          itemBuilder: (context, index) => Item(
+            colorModel: items[index],
+            isSplitScreen: isSplitScreen,
+            onSelect: (value) => controller.select = value,
+          ),
+        ),
+        detailBuilder: (context, item, isSplitScreen) => item == null
+            ? Container()
+            // [ColorModelDetail] is an example view - a Card
+            : ColorModelDetail(
+                colorModel: item,
+                isSplitScreen: isSplitScreen,
+                colorModelListenable: controller.selectedItem,
+              ),
+      ),
+    );
+  }
+
+  @override
+  void dispose() {
+    controller.dispose();
+    super.dispose();
+  }
+}
 ```
 
 ## Additional information
 
-TODO: Tell users more about the package: where to find more information, how to
-contribute to the package, how to file issues, what response they can expect
-from the package authors, and more.
+This is a quick helper package I put together based on other work I was doing.
+If you find it useful or want to add some feature please let me know.
