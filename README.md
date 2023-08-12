@@ -11,7 +11,9 @@ and the Flutter guide for
 [developing packages and plugins](https://flutter.dev/developing-packages).
 -->
 
-# ListDetailBase is a template package for List-Detail or Master-Detail layouts
+# ListDetailBase
+
+## A template package for List-Detail or Master-Detail layouts
 
 ## Features
 
