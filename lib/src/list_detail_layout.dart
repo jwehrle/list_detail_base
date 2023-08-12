@@ -192,8 +192,7 @@ class _SizeAdaptiveView<T> extends StatelessWidget {
   /// Orientation of device, used by [_ListDetail]
   final Orientation orientation;
 
-  /// ValueListenable of character used by
-  /// both [_ListDetail] and [CharacterList]
+  /// ValueListenable of character used by [_ListDetail]
   final ValueListenable<T?> selectedItem;
 
   /// Function used to fetch list of characters
