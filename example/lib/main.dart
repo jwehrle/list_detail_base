@@ -34,15 +34,20 @@ class MyHomePage extends StatefulWidget {
   State<MyHomePage> createState() => _MyHomePageState();
 }
 
+/// Example of ListDetailBase
 class _MyHomePageState extends State<MyHomePage> {
+
+  /// Make a controller with the same type as your list
   late final ListDetailController<ColorEtymology> controller;
 
   @override
   void initState() {
     super.initState();
+    /// 5 second delay for show. Transform turns JSON list into a 
+    /// list of your model 
     controller = ListDetailController(
       fetch: () => Future.delayed(const Duration(seconds: 5), () => Future.value(colorMapList)),
-      transform: (map) => ColorEtymology.fromMap(map),
+      transform: ColorEtymology.fromMap,
     );
   }
 
