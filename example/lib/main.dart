@@ -36,42 +36,34 @@ class MyHomePage extends StatefulWidget {
 
 /// Example of ListDetailBase
 class _MyHomePageState extends State<MyHomePage> {
-
   /// Make a controller with the same type as your list
   late final ListDetailController<ColorEtymology> controller;
+
+  // final GlobalKey<ListDetailLayoutState> layoutKey = GlobalKey();
 
   @override
   void initState() {
     super.initState();
-    /// 5 second delay for show. Transform turns JSON list into a 
-    /// list of your model 
-    controller = ListDetailController(
-      fetch: () => Future.delayed(const Duration(seconds: 5), () => Future.value(colorMapList)),
-      transform: ColorEtymology.fromMap,
-    );
+    controller = ListDetailController();
   }
 
   @override
   Widget build(BuildContext context) {
+    final list = List<ColorEtymology>.from(
+      colorMapList.map(ColorEtymology.fromMap),
+    );
     return Scaffold(
       appBar: AppBar(title: Text(widget.title)),
-      body: ListDetailLayout(
+      body: ListDetail<ColorEtymology>(
         controller: controller,
-        listBuilder: (context, items, isSplitScreen) => ListView.builder(
-          itemCount: items.length,
-          itemBuilder: (context, index) => Item(
-            colorModel: items[index],
-            isSplitScreen: isSplitScreen,
-            onSelect: (value) => controller.select = value,
-          ),
-        ),
-        detailBuilder: (context, item, isSplitScreen) => item == null
-            ? Container()
-            : ColorModelDetail(
-                colorModel: item,
-                isSplitScreen: isSplitScreen,
-                colorModelListenable: controller.selectedItem,
-              ),
+        child: Builder(builder: (innerContext) {
+          return ListDetailLayout(
+            // key: layoutKey,
+            controller: ListDetail.of<ColorEtymology>(innerContext).controller,
+            listBuilder: (innerContext) => ColorList(list: list),
+            detailBuilder: (innerContext) => const ColorDetail(),
+          );
+        }),
       ),
     );
   }

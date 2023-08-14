@@ -11,7 +11,7 @@ class ColorEtymology {
     required this.etymology,
   });
 
-  factory ColorEtymology.fromMap(Map<String, dynamic> map) {
+  static ColorEtymology fromMap(Map<String, dynamic> map) {
     return ColorEtymology(
       color: Color(map['color']),
       name: map['name'],

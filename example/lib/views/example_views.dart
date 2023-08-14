@@ -1,10 +1,32 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:list_detail_base/list_detail_base.dart';
 
 import '../data/example_data.dart';
 
-class Item extends StatelessWidget {
-  const Item({
+class ColorList extends StatelessWidget {
+  const ColorList({
+    super.key,
+    required this.list,
+  });
+
+  final List<ColorEtymology> list;
+
+  @override
+  Widget build(BuildContext context) {
+    final controller = ListDetail.of<ColorEtymology>(context).controller;
+    return ListView.builder(
+      itemCount: list.length,
+      itemBuilder: (context, index) => ColorListTile(
+        colorModel: list[index],
+        isSplitScreen: controller.isSplit,
+        onSelect: (value) => controller.select = value,
+      ),
+    );
+  }
+}
+
+class ColorListTile extends StatelessWidget {
+  const ColorListTile({
     super.key,
     required this.colorModel,
     required this.isSplitScreen,
@@ -32,10 +54,7 @@ class Item extends StatelessWidget {
                   appBar: AppBar(
                     title: Text(colorModel.name),
                   ),
-                  body: ColorModelDetail(
-                    colorModel: colorModel,
-                    isSplitScreen: isSplitScreen,
-                  ),
+                  body: const ColorDetail(),
                 );
               },
             ),
@@ -54,25 +73,16 @@ Color textColor(Color background) {
       : Colors.white;
 }
 
-class ColorModelDetail extends StatelessWidget {
-  const ColorModelDetail({
-    super.key,
-    required this.colorModel,
-    required this.isSplitScreen,
-    this.colorModelListenable,
-  }) : assert(
-          !isSplitScreen || colorModelListenable != null,
-        );
-
-  final ColorEtymology? colorModel;
-  final bool isSplitScreen;
-  final ValueListenable<ColorEtymology?>? colorModelListenable;
+class ColorDetail extends StatelessWidget {
+  const ColorDetail({super.key});
 
   @override
   Widget build(BuildContext context) {
-    if (isSplitScreen) {
+    final controller = ListDetail.of<ColorEtymology>(context).controller;
+
+    if (controller.isSplit) {
       return ValueListenableBuilder<ColorEtymology?>(
-        valueListenable: colorModelListenable!,
+        valueListenable: controller.selectedItem,
         builder: (context, value, _) {
           return AnimatedSwitcher(
             duration: kThemeAnimationDuration,
@@ -87,10 +97,10 @@ class ColorModelDetail extends StatelessWidget {
       );
     }
 
-    if (colorModel == null) {
+    if (controller.selected == null) {
       return Container();
     }
-    return ColorModelCard(colorModel: colorModel!);
+    return ColorModelCard(colorModel: controller.selected!);
   }
 }
 

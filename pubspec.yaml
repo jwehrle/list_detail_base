@@ -1,6 +1,6 @@
 name: list_detail_base
 description: A templat package for List-Detail or Master-List layouts.
-version: 0.0.1
+version: 0.2.0
 homepage: https://github.com/jwehrle/list_detail_base
 
 environment:

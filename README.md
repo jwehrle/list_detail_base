@@ -20,6 +20,7 @@ and the Flutter guide for
 * Builds for large or small screens in one simple widget.
 * Easily modifiable.
 * Handles all state management with no dependencies and no fuss.
+* Inhereted lookup of controller `ListDetail<T>.of(context)`
 * Simple package. Look at the code. There's not much complexity.
 
 ## Getting started
