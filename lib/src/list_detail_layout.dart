@@ -1,6 +1,5 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:list_detail_base/src/list_detail.dart';
 
 import 'list_detail_controller.dart';
 
