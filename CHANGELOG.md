@@ -15,3 +15,7 @@
 ## 0.2.1
 
 * Gave more detailed description and removed unused import.
+
+## 0.2.2
+
+* Fixed typo in description.
